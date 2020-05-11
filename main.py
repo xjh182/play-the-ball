@@ -25,7 +25,7 @@ class Ball(pygame.sprite.Sprite):
 
     def move(self):
         self.rect = self.rect.move(self.speed)
-        
+
         #左进右出，上进下出
         if self.rect.right < 0:
             self.rect.left = self.width
@@ -51,16 +51,43 @@ class Ball(pygame.sprite.Sprite):
 #
 #    return col_balls
 
+#玻璃面板
+class Glass(pygame.sprite.Sprite):#不继承也行
+    def __init__(self,glass_image,bg_size):
+        #初始动画精灵
+        pygame.sprite.Sprite.__init__(self)
+
+        self.glass_image = pygame.image.load(glass_image).convert_alpha()
+        self.glass_rect = self.glass_image.get_rect()
+        self.glass_rect.left, self.glass_rect.top = \
+            (bg_size[0] - self.glass_rect.width) // 2 ,\
+                (bg_size[1] - self.glass_rect.height)
+
+
 def main():
     pygame.init()
 
     ball_image = "be.png"
+    glass_image = "glass.png"
     bg_image = "background.jpg"
 
     running = True
 
+    #添加背景音乐
+    pygame.mixer.music.load("bgm.ogg")
+    pygame.mixer.music.play()
+
+    #添加音效
+    ok = pygame.mixer.Sound("ok.ogg")
+    good = pygame.mixer.Sound("good.ogg")
+    bed = pygame.mixer.Sound("bed.ogg")
+
     screen = pygame.display.set_mode(bg_size)
     pygame.display.set_caption("Play the ball")
+
+    #音乐播放完时，游戏结束
+    GAMEOVER = USEREVENT
+    pygame.mixer.music.set_endevent(GAMEOVER)
 
     background = pygame.image.load(bg_image)
 
@@ -82,10 +109,12 @@ def main():
         balls.append(ball)
         group.add(ball)
 
-        #也是自己写的碰撞检测的一部分     
+        #也是自己写的碰撞检测的一部分
         #while collide_check(ball,balls):
         #    ball.rect.left, ball.rect.top = randint(0, width-55),randint(0, height-55)
         balls.append(ball)
+
+    glass = Glass(glass_image, bg_size)
 
     clock = pygame.time.Clock()
 
@@ -94,7 +123,13 @@ def main():
             if event.type == QUIT:
                 sys.exit()
 
+            elif event.type == GAMEOVER:
+                bed.play()
+                pygame.time.delay(100)
+                running = False
+
         screen.blit(background,(0,0))
+        screen.blit(glass.glass_image, glass.glass_rect)
 
         for each in balls:
             each.move()
@@ -120,7 +155,7 @@ def main():
 
         pygame.display.flip()
         clock.tick(30)
-        
+
 
 if __name__ == "__main__":
     main()

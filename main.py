@@ -4,10 +4,10 @@ import math
 import os
 from pygame.locals import *
 from random import *
+import time
 os.getcwd()
-
-#游戏背景尺寸
 bg_size = width, height = 1024,511
+
 
 #球类继承自Sprite类
 class Ball(pygame.sprite.Sprite):
@@ -20,26 +20,33 @@ class Ball(pygame.sprite.Sprite):
         self.rect = self.glayball_image.get_rect()
         #将小球放在指定位置
         self.rect.left, self.rect.top = position
+        self.side = [choice([-1,1]),choice([-1,1])]
         self.speed = speed
+        #是否碰撞
+        self.collide = False
         self.target = target
         self.control = False
         self.width, self.height = bg_size[0], bg_size[1]
         self.radius = self.rect.width / 2
 
     def move(self):
-        self.rect = self.rect.move(self.speed)
+        if self.control:
+            self.rect = self.rect.move(self.speed)
+        else:
+            self.rect = self.rect.move((self.side[0] * self.speed[0], \
+                self.side[1] * self.speed[1]))
 
         #左进右出，上进下出
-        if self.rect.right < 0:
+        if self.rect.right <= 0:
             self.rect.left = self.width
 
-        elif self.rect.left > self.width:
+        elif self.rect.left >= self.width:
             self.rect.right = 0
 
-        if self.rect.bottom < 0:
+        if self.rect.bottom <= 0:
             self.rect.top = self.height
 
-        elif self.rect.top > self.height:
+        elif self.rect.top >= self.height:
             self.rect.bottom = 0
 
     def check(self, motion):
@@ -98,14 +105,21 @@ def main():
     good = pygame.mixer.Sound("good.ogg")
     bed = pygame.mixer.Sound("bed.ogg")
 
-    screen = pygame.display.set_mode(bg_size)
-    pygame.display.set_caption("玩个球")
-
     #音乐播放完时，游戏结束
     GAMEOVER = USEREVENT
     pygame.mixer.music.set_endevent(GAMEOVER)
 
+    #窗口
+    screen = pygame.display.set_mode(bg_size)
+    pygame.display.set_caption("玩个球")
     background = pygame.image.load(bg_image)
+
+    #洞
+    hole = [(144,168,211,235),(357,381,82,106),\
+        (457,481,324,348),(760,784,333,357),\
+            (821,845,133,157)]
+
+    msgs =[]
 
     #存放小球的列表
     balls = []
@@ -115,13 +129,12 @@ def main():
     #BALL_NAM = 5
     for i in range(5):
         #位置随机，速度随机
-        position = randint(0,width-55),randint(0,height-55)
-        speed = [randint(-5,5),randint(-5,5)]
+        position = randint(0,width-50),randint(0,height-50)
+        speed = [randint(1,5),randint(1,5)]
         ball = Ball(glay_image,green_image,position,speed,5 * (i+1))
 
         while pygame.sprite.spritecollide(ball, group, False, pygame.sprite.collide_circle):
-            ball.rect.left, ball,rect.top = randint(0, width-55),randint(0, height-55)
-
+            ball.rect.left, ball,rect.top = randint(0, width-50),randint(0, height-50)
         balls.append(ball)
         group.add(ball)
 
@@ -139,7 +152,7 @@ def main():
     pygame.time.set_timer(MYTIMER, 1000)
 
     #设置长按响应
-    pygame.key.set_repeat(100,)
+    pygame.key.set_repeat(100,100)
 
     clock = pygame.time.Clock()
 
@@ -185,6 +198,26 @@ def main():
                         if each.control:
                             each.speed[0] += 1
 
+                if event.key == K_SPACE:
+                    for each in group:
+                        if each.control:
+                            for i in hole:
+                                if i[0] <= each.rect.centerx <= i[1] and i[2] <= each.rect.centery <= i[3]:
+                                    good.play()
+                                    each.speed = [0,0]
+                                    group.remove(each)
+                                    temp = balls.pop(balls.index(each))
+                                    balls.insert(0, temp)
+                                    hole.remove(i)
+                            if not hole:
+                                pygame.mixer.music.stop()
+                                ok.play()
+                                pygame.time.delay(300)
+                                msg = pygame.image.load("ok.png").convert_alpha()
+                                msg_pos = (width - msg.get_width()) // 2,(height - msg.get_height()) // 2
+                                msgs.append((msg, msg_pos))
+                                os.system("pause")
+
 
         screen.blit(background,(0,0))
         screen.blit(glass.glass_image, glass.glass_rect)
@@ -205,6 +238,9 @@ def main():
 
         for each in balls:
             each.move()
+            if each.collide:
+                each.speed = [randint(1,5), randint(1,5)]
+                each.collide = False
             if each.control:
                 #绿色小球
                 screen.blit(each.greenball_image,each.rect)
@@ -215,12 +251,21 @@ def main():
             group.remove(each)
 
             if pygame.sprite.spritecollide(each, group, False, pygame.sprite.collide_circle):
-                #获得一个随机速度
-                each.speed = [randint(-10,10), randint(-10,10)]
+                #方向取反
+                each.side[0] = -each.side[0]
+                each.side[1] = -each.side[1]
+                each.collide = True
                 #碰撞脱离控制
-                each.control = False
+                if each.control:
+                    each.side[0] = -1
+                    each.side[1] = -1
+                    each.control = False
+                    each.control = False
 
             group.add(each)
+
+        for msg in msgs:
+            screen.blit(msg[0], msg[1])
 
         #for i in range(BALL_NAM):
         #    item = balls.pop(i)
